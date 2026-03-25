@@ -1338,7 +1338,6 @@ function parseRoom(md, filename) {
   var title = '';
   var descLines = [];
   var interactions = [];
-  var pastDescription = false; // true after first blank line following description
 
   for (var i = 0; i < lines.length; i++) {
     var trimmed = lines[i].trim();
@@ -1350,17 +1349,17 @@ function parseRoom(md, filename) {
     }
 
     // Skip ## headings (legacy section headers, ignored)
-    if (/^##\s+/.test(trimmed)) { pastDescription = true; continue; }
+    if (/^##\s+/.test(trimmed)) continue;
 
-    // Blank line: if we already have description content, mark transition
-    if (trimmed === '') {
-      if (descLines.length > 0) pastDescription = true;
-      continue;
-    }
+    // Skip blank lines
+    if (trimmed === '') continue;
 
-    // After the description block, lines with : → interaction
-    if (pastDescription) {
-      var m = trimmed.match(/^(.+?)[：:]\s*(.+)$/);
+    // Lines starting with - are interactions: - action：result
+    if (/^[-\u2010\u2011\u2012\u2013\u2014\u2015\uFF0D\u30FC*]\s*/.test(trimmed)) {
+      // Accept: - dash, various unicode dashes, fullwidth dash, * asterisk
+      // With or without space after
+      var content = trimmed.replace(/^[-\u2010\u2011\u2012\u2013\u2014\u2015\uFF0D\u30FC*]\s*/, '');
+      var m = content.match(/^(.+?)[：:]\s*(.+)$/);
       if (m) {
         var rawResult = m[2].trim();
         var collectible = null;
@@ -1370,14 +1369,12 @@ function parseRoom(md, filename) {
           rawResult = rawResult.replace(/\*(.+?)\*\s*$/, '').trim();
         }
         interactions.push({ label: m[1].trim(), result: rawResult, collectible: collectible });
-        continue;
       }
+      continue;
     }
 
-    // Before transition (or non-matching lines after) → description
-    if (!pastDescription) {
-      descLines.push(trimmed);
-    }
+    // Everything else → description
+    descLines.push(trimmed);
   }
 
   if (!title) title = filename.replace(/\.md$/, '');
